@@ -20,3 +20,47 @@ INNER JOIN sys.dm_db_missing_index_details mid ON mig.index_handle = mid.index_h
 WHERE migs.avg_total_user_cost * (migs.avg_user_impact / 100.0) * (migs.user_seeks + migs.user_scans) > 1000
 ORDER BY migs.avg_total_user_cost * migs.avg_user_impact * (migs.user_seeks + migs.user_scans) DESC
 
+
+---highly used tables
+SELECT TableName, COUNT(*) [Dependency Count]
+FROM (
+Select Distinct
+o.Name 'TableName',
+op.Name 'DependentObject'
+From SysObjects o
+INNER Join SysDepends d ON d.DepId = o.Id
+INNER Join SysObjects op on op.Id = d.Id
+Where o.XType = 'U'
+Group by o.Name, o.Id, op.Name
+) x
+GROUP BY TableName
+ORDER BY 2 desc
+-- more info from= > sys.dm_db_missing_index_groups,  and sys.dm_db_missing_index_details
+
+
+
+---highly used table
+use database_name
+SELECT TableName, COUNT(*) 
+FROM ( Select Distinct o.Name 'TableName', op.Name 'DependentObject' 
+From SysObjects o 
+INNER Join SysDepends d ON d.DepId = o.Id 
+INNER Join SysObjects op on op.Id = d.Id Where o.XType = 'U' Group by o.Name, o.Id, op.Name ) x 
+GROUP BY TableName ORDER BY 2 desc
+
+---find which table is belonging to which db
+SELECT table_catalog, table_name
+ FROM INFORMATION_SCHEMA.TABLES where table_name = 'highlyused table name'
+
+
+---higly used column
+select col.name as column_name,
+      count(*) as tables,
+      cast(100.0 * count(*) / 
+      (select count(*) from sys.tables) as numeric(36, 1)) as percent_tables
+   from sys.tables as tab
+       inner join sys.columns as col 
+       on tab.object_id = col.object_id
+group by col.name 
+having count(*) > 1
+order by count(*) desc
